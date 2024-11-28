@@ -1,43 +1,43 @@
-name: A
+name: Remote.it RDP Setup
 on: workflow_dispatch
 
 jobs:
-  build:
-
+  setup-remoteit:
     runs-on: windows-latest
     timeout-minutes: 9999
 
     steps:
+      # Step 1: Download Remote.it CLI
+      - name: Download Remote.it CLI
+        run: |
+          Invoke-WebRequest https://downloads.remote.it/desktop/v3.34.4/Remote.It-Installer-x64.exe -OutFile remoteit.exe
 
-    # Step 1: Download Remote.it CLI
-    - name: Download Remote.it CLI
-      run: |
-        Invoke-WebRequest https://downloads.remote.it/desktop/v3.34.4/Remote.It-Installer-x64.exe -OutFile remoteit.exe
-       
+      # Step 2: Authenticate with Remote.it Using API Key
+      - name: Authenticate Remote.it
+        run: |
+          .\remoteit.exe login --apikey $Env:REMOTEIT_API_KEY
+        env:
+          REMOTEIT_API_KEY: ${{ secrets.REMOTEIT_API_KEY }}
 
-    # Step 2: Install Remote.it and Configure Account
-    - name: Install Remote.it CLI
-      run: |
-        .\remoteit.exe login -u $Env:REMOTEIT_USERNAME -p $Env:REMOTEIT_PASSWORD
-      env:
-        REMOTEIT_USERNAME: ${{ secrets.REMOTEIT_USERNAME }}
-        REMOTEIT_PASSWORD: ${{ secrets.REMOTEIT_PASSWORD }}
+      # Step 3: Register the Device
+      - name: Register Device with Remote.it
+        run: |
+          .\remoteit.exe device register --name "WindowsRDP" --type "pc"
 
-    # Step 3: Register the Device
-    - name: Register Device with Remote.it
-      run: |
-        .\remoteit.exe device register --name "WindowsRDP" --type "pc"
+      # Step 4: Enable RDP Access
+      - name: Enable RDP Access
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
 
-    # Step 4: Enable RDP Access
-    - name: Enable RDP Access
-      run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-       
+      # Step 5: Add RDP Service
+      - name: Add RDP Service to Remote.it
+        run: |
+          .\remoteit.exe service add --device-name "WindowsRDP" --name "RDP" --port 3389 --protocol tcp
 
-    # Step 5: Add RDP Service to Remote.it
-    - name: Add RDP Service to Remote.it
-      run: |
-        .\remoteit.exe service add --device-name "WindowsRDP" --name "RDP" --port 3389 --protocol tcp
-        
+      # Step 6: List Services (for Debugging)
+      - name: List Services
+        run: |
+          .\remoteit.exe service list
+
